@@ -1,122 +1,123 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+
+import { useState } from "react";
+
+import Header from "./components/Header";
+import StoryPanel from "./components/StoryPanel";
+import ActionInput from "./components/ActionInput";
+import SidePanel from "./components/SidePanel";
+
+import "./styles/app.css";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [screen, setScreen] = useState("landing");
+
+  const [messages, setMessages] = useState([
+    {
+      type: "system",
+      text: "You wake on cold, wet soil. Pines stand around you, black against a pale moon. Somewhere beyond the trees, a branch snaps.",
+    },
+  ]);
+
+  const [gameState, setGameState] = useState({
+    location: "Forest",
+    threatLevel: 2,
+    condition: "Stable",
+    inventory: ["Old Note"],
+  });
+
+  function startGame() {
+    if (screen !== "landing") return;
+
+    setScreen("leaving");
+
+    setTimeout(() => {
+      setScreen("game");
+    }, 900);
+  }
+
+  function handleAction(action) {
+    const trimmedAction = action.trim();
+
+    if (!trimmedAction) return;
+
+    const lowerAction = trimmedAction.toLowerCase();
+
+    let response =
+      "The forest listens. Somewhere in the darkness, leaves begin to move.";
+
+    if (lowerAction.includes("look")) {
+      response =
+        "Moonlight filters through the trees. You notice a narrow path and a loose rock near your feet.";
+    } else if (lowerAction.includes("wait")) {
+      response =
+        "You remain still. The forest grows quieter. Something is breathing nearby.";
+    } else if (lowerAction.includes("rock")) {
+      response =
+        "You pick up the cold rock. It feels heavy in your hand.";
+
+      setGameState((prev) => ({
+        ...prev,
+        inventory: prev.inventory.includes("Rock")
+          ? prev.inventory
+          : [...prev.inventory, "Rock"],
+      }));
+    } else if (lowerAction.includes("run")) {
+      response =
+        "You run between the trees. Behind you, footsteps begin matching your pace.";
+    }
+
+    setMessages((prev) => [
+      ...prev,
+      { type: "player", text: trimmedAction },
+      { type: "system", text: response },
+    ]);
+
+    setGameState((prev) => ({
+      ...prev,
+      threatLevel: Math.min(prev.threatLevel + 1, 10),
+    }));
+  }
+
+  if (screen !== "game") {
+    return (
+      <main
+        className={`landing-page ${
+          screen === "leaving" ? "fade-out" : ""
+        }`}
+      >
+        <div className="landing-content">
+          <h1>Whispers in the Dark</h1>
+
+          <button
+            className="wander-button"
+            onClick={startGame}
+            disabled={screen === "leaving"}
+          >
+            Wander Around <span aria-hidden="true">→</span>
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app-shell game-fade-in">
+      <div className="background-glow" />
 
-      <div className="ticks"></div>
+      <Header />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      <main className="game-layout">
+        <section className="left-column">
+          <StoryPanel messages={messages} />
+          <ActionInput onSubmit={handleAction} />
+        </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        <aside className="right-column">
+          <SidePanel gameState={gameState} />
+        </aside>
+      </main>
+    </div>
+  );
 }
 
-export default App
+export default App;
