@@ -1,0 +1,28 @@
+
+{
+  "id": "city",
+  "name": "The Last City",
+  "year": 2080,
+  "setting": "AI Apocalypse",
+  "starting_location": "Abandoned Shelter",
+  "description": "Humanity has lost control of artificial intelligence. Autonomous systems control most cities.",
+  "technology": [
+    "smartphones",
+    "surveillance drones",
+    "advanced robotics",
+    "artificial intelligence",
+    "automated vehicles"
+  ],
+  "threats": [
+    "hostile drones",
+    "autonomous security systems",
+    "scarcity of food",
+    "unpredictable AI agents"
+  ],
+  "rules": [
+    "Technology must be consistent with the year 2080.",
+    "New objects must be plausible given the player's location and history.",
+    "The player cannot possess an object unless it has been established in the world.",
+    "Events and character interactions must remain consistent with previous events."
+  ]
+}

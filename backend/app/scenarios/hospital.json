@@ -1,0 +1,28 @@
+
+{
+  "id": "hospital",
+  "name": "The Hospital",
+  "year": 1980,
+  "setting": "Zombie Apocalypse",
+  "starting_location": "Abandoned Hospital Room",
+  "description": "A mysterious infection has spread through a large hospital. Emergency broadcasts have stopped. Survivors hide while infected patients wander through the corridors.",
+  "technology": [
+    "landline telephones",
+    "cassette recorders",
+    "analog medical equipment",
+    "radios",
+    "emergency generators"
+  ],
+  "threats": [
+    "infected patients",
+    "limited medical supplies",
+    "power failures",
+    "hostile survivors"
+  ],
+  "rules": [
+    "Maintain consistency with the year 1980.",
+    "Modern smartphones and advanced AI systems are not ordinarily available.",
+    "New objects, survivors, and events must be plausible within the established story.",
+    "Player decisions have persistent consequences."
+  ]
+}

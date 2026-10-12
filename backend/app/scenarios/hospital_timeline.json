@@ -1,0 +1,17 @@
+{
+  "scenario_id": "hospital",
+  "events": [
+    {
+      "id": "generator_failure",
+      "trigger_turn": 8,
+      "type": "power_failure",
+      "description": "The emergency generator fails."
+    },
+    {
+      "id": "room_3_bomb",
+      "trigger_turn": 12,
+      "type": "scheduled_detonation",
+      "description": "The hidden explosive reaches its detonation time."
+    }
+  ]
+}

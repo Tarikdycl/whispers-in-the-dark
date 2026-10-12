@@ -1,0 +1,28 @@
+
+{
+  "id": "forest",
+  "name": "The Forest",
+  "year": 1870,
+  "setting": "Gothic Horror in Europe",
+  "starting_location": "Foggy Forest Trail",
+  "description": "A vast European forest where travelers disappear. Remote villages, forgotten paths, strange sounds, and unexplained phenomena surround the player.",
+  "technology": [
+    "oil lamps",
+    "pocket watches",
+    "horse-drawn carriages",
+    "handwritten letters",
+    "basic firearms"
+  ],
+  "threats": [
+    "wild animals",
+    "hostile strangers",
+    "exposure to cold",
+    "unexplained supernatural phenomena"
+  ],
+  "rules": [
+    "Maintain consistency with the year 1870.",
+    "Avoid modern electronic technology unless a coherent supernatural or science-fiction explanation has been established.",
+    "New discoveries must be plausible within the world and established history.",
+    "Remember player actions and their consequences."
+  ]
+}
