@@ -1,178 +1,219 @@
-\# Whispers in the Dark
+# Whispers in the Dark
 
+**An AI-powered, open-ended survival-horror text adventure.**
 
+*The world does not wait for you.*
 
-\*An AI-powered interactive psychological horror adventure.\*
+Whispers in the Dark is an experimental, single-player narrative game in which players type actions in natural language rather than choose from a fixed menu. A language model interprets their intentions and proposes discoveries; a Python game engine manages persistent objects, inventory, game time, and events.
 
+> **Status: Playable alpha / pre-MVP.** The React frontend, FastAPI gameplay API, OpenAI integration, and SQLite-backed sessions work locally. Movement, physical interactions, event causality, and full save/resume are still under development. This is not a finished survival simulator.
 
+## Gameplay
 
-\*\*Whispers in the Dark\*\* is an experimental narrative horror game where players interact with a mysterious world through natural language. Instead of selecting from predefined choices, players describe their actions freely, while an AI narrator interprets their intentions and tells the evolving story.
+Choose one of three starting scenarios:
 
+| Scenario | Year | Setting |
+| --- | --- | --- |
+| **The Hospital** | 1980 | Zombie-apocalypse horror in an abandoned hospital |
+| **The Forest** | 1870 | Gothic horror in a fog-covered European forest |
+| **The Last City** | 2080 | AI-apocalypse survival in an abandoned city |
 
+Describe what you want to do: inspect a room, search beneath furniture, take an item, or attempt something unexpected. Actions can fail; the long-term design principle is **freedom to attempt, not guaranteed success**.
 
-> The darkness is listening. What will you do?
+The interface deliberately stays minimal: a story feed, free-text input, health and hunger indicators, and timestamps from the fictional world clock. Narration uses a gradual typewriter effect and restrained horror prose.
 
+## Implemented features
 
+- **Natural-language gameplay:** an OpenAI-backed `WorldDirector` produces Pydantic-structured proposals.
+- **Three scenario configurations:** separate JSON-defined settings, eras, threats, and rules.
+- **Persistent world state:** SQLite sessions store scenario, current position fields, game time, objects, inventory references, flags, and event history.
+- **Seeded environment:** the Hospital starts with established items, including visible and hidden objects.
+- **Basic validated interactions:** the engine supports pickup, drop, and inspect operations for referenced objects.
+- **Location graph foundation:** SQLite tables model locations and directed, potentially locked connections.
+- **World clock:** action durations advance fictional time, including overnight date changes; messages display the action's start time and the response's end time.
+- **Timeline prototype:** scenario-specific scheduled events can mutate state based on flags; scheduling is currently **turn-based**, not clock-based.
+- **Atmospheric React UI:** scenario selection, fade transitions, typewriter narration, blinking cursor, compact timestamps, and chat scrolling.
 
-\## The Concept
+### Current limitations
 
+The AI may still *describe* actions that the Python engine does not execute. In particular:
 
+- Players cannot yet reliably navigate rooms via the location graph.
+- Hidden-object visibility and discovery are not fully enforced by the resolver.
+- Breaking, repairing, unlocking, fighting, and other physical consequences lack generalized validation.
+- Sleeping advances the clock, but scheduled events cannot yet interrupt it; timeline triggers still use turns.
+- NPC behavior, active survival rules, death conditions, and complete narrative memory are not yet implemented.
+- Session data persists in SQLite, but the browser does not yet provide a complete save/resume experience with restored dialogue.
 
-You awaken in an unfamiliar place. You don't know where you are, what happened, or what might be watching you.
-
-
-
-You can look around, explore, hide, interact with objects, or attempt almost anything you can describe.
-
-
-
-The world responds to your decisions. Every action may reveal information, change your surroundings, or bring something closer.
-
-
-
-\## Planned Features
-
-
-
-\- \*\*Free-form interaction:\*\* Describe actions in natural language.
-
-\- \*\*AI-powered narration:\*\* An LLM generates atmospheric, context-aware responses.
-
-\- \*\*Persistent game state:\*\* Locations, inventory, discoveries, and consequences remain consistent.
-
-\- \*\*Dynamic horror:\*\* Threats and events evolve based on player behavior.
-
-\- \*\*Multiple scenarios:\*\* Different locations, timelines, stories, and endings.
-
-\- \*\*Minimalist interface:\*\* An immersive, text-first experience with atmospheric visual and audio design.
-
-
-
-\## Technology Stack
-
-
+## Tech stack
 
 | Layer | Technology |
+| --- | --- |
+| Frontend | React, JavaScript, Vite, CSS |
+| Backend API | Python, FastAPI |
+| AI | OpenAI Responses API, Pydantic structured outputs |
+| Game engine | Python world state, operations, clock, and timeline modules |
+| Persistence | SQLite (`sqlite3`) |
+| Tooling | `uv`, npm, pytest |
 
-|---|---|
+## Architecture
 
-| Frontend | React, Vite, JavaScript |
-
-| Backend | Python, FastAPI |
-
-| Package Management | npm, uv |
-
-| AI Narration | LLM integration (planned) |
-
-| Game Logic | Python-based state and rules engine (planned) |
-
-
-
-\## Getting Started
-
-
-
-\### Requirements
-
-
-
-\- Node.js and npm
-
-\- Python 3.12
-
-\- uv
-
-
-
-\### Frontend
-
-
-
-```bash
-
-cd frontend
-
-npm install
-
-npm run dev
-
+```text
+Player action (React)
+        |
+        v
+POST /game/action (FastAPI)
+        |
+        v
+Load session + scenario (SQLite / JSON)
+        |
+        v
+WorldDirector: narration + structured proposals (OpenAI)
+        |
+        v
+Apply discoveries + resolve supported object operations (Python)
+        |
+        v
+Advance game clock + process timeline (Python)
+        |
+        v
+Save WorldState (SQLite)
+        |
+        v
+Narration + updated stats + timestamps (React)
 ```
 
+**Engineering direction:** In the current alpha, the director generates narration before all effects have been validated. A planned separation of **intent interpretation → authoritative rule resolution → perceptual narration** will make the narrative match actual world changes.
 
+### Project structure
 
-\### Backend
+```text
+whispers-in-the-dark/
+├── frontend/
+│   └── src/
+│       ├── App.jsx                  # Screens, story feed, API calls
+│       └── styles/app.css           # Visual styling
+└── backend/
+    ├── app/
+    │   ├── main.py                  # FastAPI app and CORS
+    │   ├── api/game.py              # Gameplay endpoints
+    │   ├── ai/director.py           # Structured LLM proposals
+    │   ├── engine/
+    │   │   ├── world.py              # Load scenarios / create worlds
+    │   │   ├── seeding.py            # Starting environment
+    │   │   ├── mutations.py          # Object discovery proposals
+    │   │   ├── actions.py            # Pickup / drop / inspect
+    │   │   ├── clock.py              # Fictional time and durations
+    │   │   └── timeline.py           # Prototype scheduled events
+    │   ├── models/schemas.py        # Pydantic models
+    │   ├── scenarios/               # Scenario and timeline JSON
+    │   └── storage/
+    │       ├── database.py          # SQLite schema / connections
+    │       ├── graph.py             # Locations and connections
+    │       └── sessions.py          # Session persistence
+    ├── tests/                        # Pytest checks
+    └── pyproject.toml                # Python dependencies
+```
 
+## Run locally
 
+### Requirements
 
-Open another terminal:
+- Python **3.11+** (development has used Python 3.12)
+- [uv](https://docs.astral.sh/uv/)
+- Node.js and npm compatible with the project's Vite version
+- An OpenAI API key with available API billing/credits (billed separately from ChatGPT)
 
-
+### 1. Clone and configure the backend
 
 ```bash
-
-cd backend
-
+git clone https://github.com/Tarikdycl/whispers-in-the-dark.git
+cd whispers-in-the-dark/backend
 uv sync
-
-uv run uvicorn app.main:app --reload
-
 ```
 
+Create a **private** `backend/.env` file:
 
+```dotenv
+OPENAI_API_KEY=your-api-key-here
+OPENAI_MODEL=gpt-4.1-mini
+```
 
-Frontend: `http://localhost:5173`
+Never commit `.env` or publish your API key. The model shown is an example configuration; availability and costs depend on your API account.
 
+Launch FastAPI:
 
+```bash
+uv run uvicorn app.main:app --reload
+```
 
-Backend API documentation: `http://127.0.0.1:8000/docs`
+Backend: **http://127.0.0.1:8000**  
+Interactive API docs: **http://127.0.0.1:8000/docs**
 
+### 2. Start the frontend
 
+Open a second terminal from the repository root:
 
-\## Roadmap
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
+Open **http://localhost:5173** and choose a scenario. Both servers need to be running. The frontend currently uses a local backend URL, so production deployment will require API URL configuration and appropriate CORS settings.
 
+### 3. Run tests
 
-\- \[x] Initialize React frontend
+From `backend/`:
 
-\- \[x] Configure Python backend with FastAPI and uv
+```bash
+uv run python -m pytest -v
+```
 
-\- \[x] Run the initial development servers
+The test suite covers foundational scenario, world, storage, graph, and mutation behavior. Newer AI interaction and clock features need additional regression tests. Routine unit tests should mock LLM calls rather than incur API charges.
 
-\- \[ ] Design the core game state and action system
+## Gameplay API
 
-\- \[ ] Connect frontend and backend
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `POST` | `/game/start` | Start a new scenario and return its session ID |
+| `POST` | `/game/action` | Submit an action and receive narration, timestamps, and updated state |
+| `GET` | `/game/{session_id}` | Read the saved world state |
 
-\- \[ ] Integrate an LLM narrator
+Example request:
 
-\- \[ ] Build the first playable horror scenario
+```json
+{
+  "session_id": "your-session-id",
+  "action": "I search underneath the hospital bed."
+}
+```
 
-\- \[ ] Implement inventory, memory, and branching outcomes
+## Roadmap
 
-\- \[ ] Add immersive UI animations and sound
+### Toward the single-player MVP
 
-\- \[ ] Playtest and prepare a public demo
+- [x] Responsive horror UI and scenario selection
+- [x] OpenAI structured response integration
+- [x] SQLite world-state persistence
+- [x] Basic object interactions and starting environment
+- [x] Fictional clock and message timestamps
+- [ ] Authoritative room navigation and visibility/discovery rules
+- [ ] Validated physical actions and consequence handling
+- [ ] Time-based events, interrupts, and perception-aware narration
+- [ ] Basic NPC threats, survival mechanics, and game-over conditions
+- [ ] Browser save/resume with persistent dialogue
+- [ ] Security, API cost controls, regression tests, and deployment
 
+### Longer-term vision (not in the MVP)
 
+- **Custom scenarios:** author or generate settings, eras, locations, and core timelines (for example, a haunted farmhouse in 1930s Tennessee).
+- **Shared-world multiplayer:** players occupy the same timeline and locations, witnessing each other's actions when perception allows.
+- **Emergent social simulation:** relationships, families, factions, settlements, and evolving societies.
+- **Provider flexibility:** evaluate local/open-weight models and reduce inference cost.
 
-\## Project Status
+The goal is to let players **attempt virtually anything**, while a consistent world simulation determines what actually happens.
 
+## Project status
 
-
-\*\*Early development — Pre-alpha\*\*
-
-
-
-The initial development environment and API are set up. Gameplay and AI narration are not yet implemented.
-
-
-
-\## Vision
-
-
-
-The goal is to create a replayable horror experience where the player's imagination becomes the interface, and the game world reacts meaningfully to their choices.
-
-
-
-Built as an independent game development and AI engineering project.
-
+**Experimental alpha.** Built as an independent full-stack AI engineering and game-development project. Gameplay systems and APIs may change as the simulation engine evolves.
