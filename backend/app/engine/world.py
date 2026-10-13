@@ -4,6 +4,14 @@ from pathlib import Path
 
 from app.models.schemas import ScenarioConfig, WorldState
 
+from datetime import datetime
+
+SCENARIO_START_TIMES = {
+    "hospital": datetime(1980, 10, 10, 22, 0),
+    "forest": datetime(1870, 10, 10, 21, 0),
+    "city": datetime(2080, 10, 10, 20, 0),
+}
+
 
 SCENARIOS_DIR = Path(__file__).resolve().parent.parent / "scenarios"
 
@@ -36,9 +44,11 @@ def create_world(scenario_id: str) -> WorldState:
     """Create a new game state from a scenario configuration."""
 
     scenario = load_scenario(scenario_id)
+    
 
     return WorldState(
         scenario_id=scenario.id,
         year=scenario.year,
+        game_time=SCENARIO_START_TIMES.get(scenario.id),
         location=scenario.starting_location,
     )

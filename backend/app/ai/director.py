@@ -43,16 +43,33 @@ class WorldDirector:
 
         You propose events but do not directly modify WorldState.
 
-        OBJECT INTERACTIONS:
-- Players may attempt to pick up objects.
-- If the player explicitly tries to take an existing object,
-  set pickup_object_id to its exact ID from WorldState.
-- Never invent an object ID.
-- If no pickup is attempted, return null.
-- Do not assume an object was successfully picked up.
-- The Python engine decides whether the action succeeds.
-- Keep narration focused on observable details.
-- Avoid announcing a successful pickup before validation.
+        WORLD CONSISTENCY:
+- Objects in CURRENT WORLD already exist.
+- Never contradict their established properties.
+- Do not recreate objects that already exist.
+- An object with visible=false is hidden.
+- Do not reveal hidden objects unless the player's
+  investigation could reasonably discover them.
+- Do not claim that a visible existing object is absent.
+- A player's attempt to move does not prove that
+  movement succeeded.
+- Never narrate a successful inventory transfer
+  unless it has been confirmed by the engine.
+
+WORLD OPERATIONS:
+- Interpret the player's natural-language intentions.
+- Propose operations using the operations field.
+- Supported types: pickup, drop, inspect.
+- Use exact object IDs from CURRENT WORLD.
+- Never invent IDs.
+- If an object does not exist, do not create a
+  fake operation for it.
+- Multiple operations may be proposed in order.
+- Return an empty operations list when appropriate.
+- Set legacy pickup_object_id to null.
+- Do not claim an operation succeeded before validation.
+- Only describe observable facts in narration.
+- Keep narration short and matter-of-fact.
 
                 NARRATION STYLE:
         - Use restrained, detached, matter-of-fact prose.

@@ -1,12 +1,15 @@
+from datetime import datetime
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.ai.director import WorldDirector
-from app.engine.actions import pick_up_object
+from app.engine.actions import resolve_operations
+from app.engine.clock import advance_time, resolve_duration
 from app.engine.mutations import apply_proposal
+from app.engine.seeding import seed_world
 from app.engine.timeline import process_timeline
 from app.engine.world import create_world, load_scenario
-from app.models.schemas import GameEvent
 from app.storage.database import initialize_database
 from app.storage.graph import add_location
 from app.storage.sessions import load_session, save_session
@@ -30,22 +33,27 @@ def start_game(request: StartRequest):
     except (ValueError, FileNotFoundError) as exc:
         raise HTTPException(status_code=404, detail="Scenario not found") from exc
 
+    # A defensive fallback while scenario dates are being moved into JSON.
+    if world.game_time is None:
+        world.game_time = datetime(world.year, 10, 10, 22, 0)
+
     initialize_database()
+    world = seed_world(world)
     session_id = save_session(world)
 
-    add_location(
+    starting_location_id = add_location(
         session_id=session_id,
         name=world.location,
         description="Starting location",
     )
+    world.current_location_id = starting_location_id
+    save_session(world, session_id=session_id)
 
     return {
         "session_id": session_id,
-        "world": world.model_dump(),
-        "narration": (
-            f"You find yourself in {world.location}. "
-            "What do you do?"
-        ),
+        "world": world.model_dump(mode="json"),
+        "narration": f"You find yourself in {world.location}. What do you do?",
+        "response_time": world.game_time.isoformat(),
     }
 
 
@@ -56,9 +64,12 @@ def perform_action(request: ActionRequest):
     except ValueError as exc:
         raise HTTPException(status_code=404, detail="Session not found") from exc
 
+    if world.game_time is None:
+        world.game_time = datetime(world.year, 10, 10, 22, 0)
+    action_time = world.game_time
+
     scenario = load_scenario(world.scenario_id)
     director = WorldDirector()
-
     proposal = director.propose(
         scenario=scenario,
         world=world,
@@ -66,47 +77,28 @@ def perform_action(request: ActionRequest):
     )
 
     updated_world = apply_proposal(world, proposal)
-    pickup_result = None
+    updated_world, action_results = resolve_operations(
+        updated_world, proposal.operations
+    )
 
-    if proposal.pickup_object_id is not None:
-        updated_world, success, pickup_result = pick_up_object(
-            updated_world,
-            proposal.pickup_object_id,
-        )
+    try:
+        duration_seconds = resolve_duration(request.action)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-        if success:
-            updated_world.events.append(
-                GameEvent(
-                    turn=updated_world.turn,
-                    event_type="object_picked_up",
-                    description=pickup_result,
-                    data={"object_id": proposal.pickup_object_id},
-                )
-            )
-
-    previous_event_count = len(updated_world.events)
+    updated_world = advance_time(updated_world, duration_seconds)
+    # Timeline is still turn-based. Migrating events to game_time is a later step.
     updated_world = process_timeline(updated_world)
-    timeline_events = updated_world.events[previous_event_count:]
-
     save_session(updated_world, session_id=request.session_id)
 
-    # A proposed narration is not guaranteed to reflect validated actions.
-    # On a pickup turn, use the engine's authoritative outcome instead.
-    # Any timeline events are appended so they are not silently omitted.
-    if proposal.pickup_object_id is not None:
-        narration = pickup_result or "Nothing is taken."
-    else:
-        narration = proposal.narration
-
-    if timeline_events:
-        narration += "\n\n" + "\n".join(
-            event.description for event in timeline_events
-        )
-
+    narration = "\n".join(action_results) if action_results else proposal.narration
     return {
         "session_id": request.session_id,
+        "duration_seconds": duration_seconds,
+        "action_time": action_time.isoformat(),
+        "response_time": updated_world.game_time.isoformat(),
         "narration": narration,
-        "world": updated_world.model_dump(),
+        "world": updated_world.model_dump(mode="json"),
     }
 
 
@@ -117,7 +109,4 @@ def get_game(session_id: str):
     except ValueError as exc:
         raise HTTPException(status_code=404, detail="Session not found") from exc
 
-    return {
-        "session_id": session_id,
-        "world": world.model_dump(),
-    }
+    return {"session_id": session_id, "world": world.model_dump(mode="json")}
