@@ -1,15 +1,81 @@
+
 from app.models.schemas import WorldState, WorldOperation, GameEvent
+from app.storage.graph import get_neighbors
 
 
 def resolve_operations(
     world: WorldState,
     operations: list[WorldOperation],
+    session_id: str,
 ) -> tuple[WorldState, list[str]]:
 
     updated = world.model_copy(deep=True)
     results = []
 
     for operation in operations:
+
+        # ----------------------------------
+        # MOVEMENT
+        # ----------------------------------
+        if operation.type == "move":
+
+            if updated.current_location_id is None:
+                results.append("Your current location is unknown.")
+                continue
+
+            available_exits = get_neighbors(
+                session_id,
+                updated.current_location_id,
+            )
+
+            destination = next(
+                (
+                    room for room in available_exits
+                    if room["id"] == operation.target_id
+                ),
+                None,
+            )
+
+            if destination is None:
+                results.append(
+                    "You cannot reach that location from here."
+                )
+                continue
+
+            if destination["locked"]:
+                results.append(
+                    f"The way to {destination['name']} is locked."
+                )
+                continue
+
+            previous_location = updated.location
+
+            updated.current_location_id = destination["id"]
+            updated.location = destination["name"]
+
+            result = (
+                f"You move from {previous_location} "
+                f"to {destination['name']}."
+            )
+
+            updated.events.append(
+                GameEvent(
+                    turn=updated.turn,
+                    event_type="location_move",
+                    description=result,
+                    data={
+                        "from_location": previous_location,
+                        "to_location_id": destination["id"],
+                    },
+                )
+            )
+
+            results.append(result)
+            continue
+
+        # ----------------------------------
+        # OBJECT OPERATIONS
+        # ----------------------------------
         object_id = operation.target_id
         obj = updated.objects.get(object_id) if object_id else None
 
@@ -18,6 +84,10 @@ def resolve_operations(
             continue
 
         if operation.type == "pickup":
+
+            if obj.properties.get("visible", True) is False:
+                results.append("You cannot see that object.")
+                continue
 
             if object_id in updated.inventory:
                 results.append(f"You already have the {obj.name}.")

@@ -1,11 +1,10 @@
 
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from typing import Any, Literal
 
 class GameObject(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
@@ -26,7 +25,7 @@ class WorldState(BaseModel):
     year: int
     location: str
     current_location_id: str | None = None
-    game_time: datetime | None = None 
+    game_time: datetime | None = None
 
     health: int = Field(default=100, ge=0, le=100)
     hunger: int = Field(default=0, ge=0, le=100)
@@ -37,6 +36,7 @@ class WorldState(BaseModel):
     events: list[GameEvent] = Field(default_factory=list)
 
     flags: dict[str, Any] = Field(default_factory=dict)
+
 
 class ScenarioConfig(BaseModel):
     id: str
@@ -50,6 +50,7 @@ class ScenarioConfig(BaseModel):
     threats: list[str] = Field(default_factory=list)
     rules: list[str] = Field(default_factory=list)
 
+
 class ObjectProperty(BaseModel):
     key: str
     value: str
@@ -62,7 +63,7 @@ class DiscoveredObject(BaseModel):
 
 
 class WorldOperation(BaseModel):
-    type: Literal["pickup", "drop", "inspect"]
+    type: Literal["pickup", "drop", "inspect", "move"]
     target_id: str | None
     parameters: list[ObjectProperty]
 

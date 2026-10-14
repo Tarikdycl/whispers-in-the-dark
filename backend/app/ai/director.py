@@ -2,6 +2,7 @@ import os
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from app.ai.context_builder import build_world_context
 
 from app.models.schemas import (
     ScenarioConfig,
@@ -18,11 +19,12 @@ class WorldDirector:
         self.model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
 
     def propose(
-        self,
-        scenario: ScenarioConfig,
-        world: WorldState,
-        player_action: str,
-    ) -> DirectorProposal:
+    self,
+    scenario: ScenarioConfig,
+    world: WorldState,
+    player_action: str,
+    available_exits: list[dict],
+) -> DirectorProposal:
 
         instructions = """
         You are the World Director of an open-ended
@@ -70,6 +72,13 @@ WORLD OPERATIONS:
 - Do not claim an operation succeeded before validation.
 - Only describe observable facts in narration.
 - Keep narration short and matter-of-fact.
+- Supported types: pickup, drop, inspect, move.
+- For movement, use the "move" operation.
+- The target_id must match an exact destination ID
+  from AVAILABLE EXITS.
+- Never invent destination IDs.
+- A locked exit cannot be traversed.
+- Do not claim movement succeeded before validation.
 
                 NARRATION STYLE:
         - Use restrained, detached, matter-of-fact prose.
@@ -88,15 +97,18 @@ WORLD OPERATIONS:
         """
 
         context = f"""
-        SCENARIO:
-        {scenario.model_dump_json(indent=2)}
+            SCENARIO:
+            {scenario.model_dump_json(indent=2)}
 
-        CURRENT WORLD:
-        {world.model_dump_json(indent=2)}
+            CURRENT WORLD:
+            {world.model_dump_json(indent=2)}
 
-        PLAYER ACTION:
-        {player_action}
-        """
+            AVAILABLE EXITS:
+            {available_exits}
+
+            PLAYER ACTION:
+            {player_action}
+            """
 
         response = self.client.responses.parse(
             model=self.model,
