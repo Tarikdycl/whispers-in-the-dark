@@ -9,7 +9,8 @@ director = WorldDirector()
 proposal = director.propose(
     scenario=scenario,
     world=world,
-    player_action="I search the room for anything useful.",
+    player_action="I look around.",
+    available_exits=[]
 )
 
 print(proposal.model_dump_json(indent=2))

@@ -7,16 +7,18 @@ def test_discovered_object_is_added():
     world = create_world("hospital")
 
     proposal = DirectorProposal(
-        narration="You find a flashlight.",
-        discovered_objects=[
-            DiscoveredObject(
-                name="Flashlight",
-                description="An old flashlight.",
-                properties=[],
-            )
-        ],
-        reasoning_summary="A flashlight is plausible.",
-    )
+    narration="You find a flashlight.",
+    discovered_objects=[
+        DiscoveredObject(
+            name="Flashlight",
+            description="An old flashlight.",
+            properties=[],
+        )
+    ],
+    reasoning_summary="A flashlight is plausible.",
+    pickup_object_id=None,
+    operations=[],
+)
 
     updated = apply_proposal(world, proposal)
 

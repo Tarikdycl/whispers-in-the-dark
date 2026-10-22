@@ -1,5 +1,7 @@
 import os
+import json
 
+from app.ai.context_builder import build_world_context
 from dotenv import load_dotenv
 from openai import OpenAI
 from app.ai.context_builder import build_world_context
@@ -45,40 +47,44 @@ class WorldDirector:
 
         You propose events but do not directly modify WorldState.
 
-        WORLD CONSISTENCY:
-- Objects in CURRENT WORLD already exist.
-- Never contradict their established properties.
-- Do not recreate objects that already exist.
-- An object with visible=false is hidden.
-- Do not reveal hidden objects unless the player's
-  investigation could reasonably discover them.
-- Do not claim that a visible existing object is absent.
-- A player's attempt to move does not prove that
-  movement succeeded.
-- Never narrate a successful inventory transfer
-  unless it has been confirmed by the engine.
+                    WORLD CONSISTENCY:
+            - CURRENT PLAYER-VISIBLE WORLD contains the information
+            available to the player.
+            - Respect the current location, game time, inventory,
+            visible objects, and available exits.
+            - Do not invent existing object IDs or destination IDs.
+            - Never contradict established world facts.
+            - Hidden or inaccessible objects cannot be directly
+            inspected, picked up, or interacted with.
+            - Do not reveal information unavailable to the player.
+            - Player actions may fail.
+            - Never assume that a proposed action succeeded.
 
-WORLD OPERATIONS:
-- Interpret the player's natural-language intentions.
-- Propose operations using the operations field.
-- Supported types: pickup, drop, inspect.
-- Use exact object IDs from CURRENT WORLD.
-- Never invent IDs.
-- If an object does not exist, do not create a
-  fake operation for it.
-- Multiple operations may be proposed in order.
-- Return an empty operations list when appropriate.
-- Set legacy pickup_object_id to null.
-- Do not claim an operation succeeded before validation.
-- Only describe observable facts in narration.
-- Keep narration short and matter-of-fact.
-- Supported types: pickup, drop, inspect, move.
-- For movement, use the "move" operation.
-- The target_id must match an exact destination ID
-  from AVAILABLE EXITS.
-- Never invent destination IDs.
-- A locked exit cannot be traversed.
-- Do not claim movement succeeded before validation.
+            WORLD OPERATIONS:
+            - Interpret the player's natural-language intentions.
+            - Supported types: pickup, drop, inspect, move, search.
+            SEARCH OPERATIONS:
+            - Use search when the player deliberately investigates
+            a visible object or searches underneath it.
+            - The target_id must be an existing visible object ID.
+            - Search may reveal previously hidden objects.
+            - Never invent the identity of a hidden object.
+            - Do not claim that anything was discovered before
+            the Python engine validates the search.
+            - For pickup and inspect, use exact object IDs from
+            visible_objects or inventory, as appropriate.
+            - For drop, use exact object IDs from inventory.
+            - For move, use the exact destination ID from
+            available_exits.
+            - Never invent IDs.
+            - A locked exit cannot be traversed.
+            - Propose operations; the Python engine determines
+            whether they succeed.
+            - Multiple operations may be proposed in order.
+            - Return an empty operations list when appropriate.
+            - Set legacy pickup_object_id to null.
+            - Do not narrate an operation as successful before
+            engine validation.
 
                 NARRATION STYLE:
         - Use restrained, detached, matter-of-fact prose.
@@ -95,20 +101,21 @@ WORLD OPERATIONS:
         - Never introduce a major event merely for dramatic effect.
         - Describe only information available to the player.
         """
+        world_context = build_world_context(
+    world=world,
+    available_exits=available_exits,
+)
 
         context = f"""
-            SCENARIO:
-            {scenario.model_dump_json(indent=2)}
+        SCENARIO:
+        {scenario.model_dump_json(indent=2)}
 
-            CURRENT WORLD:
-            {world.model_dump_json(indent=2)}
+        CURRENT PLAYER-VISIBLE WORLD:
+        {json.dumps(world_context, indent=2)}
 
-            AVAILABLE EXITS:
-            {available_exits}
-
-            PLAYER ACTION:
-            {player_action}
-            """
+        PLAYER ACTION:
+        {player_action}
+        """
 
         response = self.client.responses.parse(
             model=self.model,
@@ -124,3 +131,55 @@ WORLD OPERATIONS:
             )
 
         return response.output_parsed
+
+    
+    def narrate_result(
+        self,
+        player_action: str,
+        action_results: list[str],
+        world_context: dict,
+    ) -> str:
+        """
+        Narrate only confirmed engine results.
+        Never modify the world state.
+        """
+
+        import json
+
+        instructions = """
+        You are the narrator of a survival-horror game.
+
+        Describe only the confirmed outcomes provided.
+
+        RULES:
+        - Never invent objects, actions, discoveries, or events.
+        - Never contradict the confirmed results.
+        - Never claim an unsuccessful action succeeded.
+        - Respect the location, historical year and game time.
+        - Do not introduce new threats or characters.
+        - Use restrained, atmospheric horror prose.
+        - Write 1-3 short sentences.
+        - Avoid describing the player's emotions.
+        - Do not add facts beyond the confirmed results.
+        """
+
+        context = {
+            "player_action": player_action,
+            "confirmed_results": action_results,
+            "current_world": world_context,
+        }
+
+        response = self.client.responses.create(
+            model=self.model,
+            instructions=instructions,
+            input=json.dumps(context),
+            max_output_tokens=150,
+            store=False,
+        )
+
+        narration = response.output_text.strip()
+
+        if not narration:
+            raise RuntimeError("Narrator returned empty text.")
+
+        return narration

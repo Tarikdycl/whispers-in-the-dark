@@ -83,11 +83,65 @@ def resolve_operations(
             results.append("That object is not available.")
             continue
 
-        if operation.type == "pickup":
+        # ----------------------------------
+        # SEARCH / DISCOVERY
+        # ----------------------------------
+        if operation.type == "search":
+
+            if obj.location != updated.location:
+                results.append("You cannot search that from here.")
+                continue
 
             if obj.properties.get("visible", True) is False:
-                results.append("You cannot see that object.")
+                results.append("You cannot locate that object.")
                 continue
+
+            discovered = []
+
+            for hidden_obj in updated.objects.values():
+
+                if hidden_obj.location != updated.location:
+                    continue
+
+                if hidden_obj.properties.get("visible", True) is not False:
+                    continue
+
+                if hidden_obj.properties.get("hidden_under") != obj.name:
+                    continue
+
+                hidden_obj.properties["visible"] = True
+                discovered.append(hidden_obj.name)
+
+            if discovered:
+                result = (
+                    "You discover: "
+                    + ", ".join(discovered)
+                    + "."
+                )
+            else:
+                result = (
+                    f"You find nothing hidden beneath the {obj.name}."
+                )
+
+            updated.events.append(
+                GameEvent(
+                    turn=updated.turn,
+                    event_type="object_search",
+                    description=result,
+                    data={
+                        "target_id": obj.id,
+                        "discovered": discovered,
+                    },
+                )
+            )
+
+            results.append(result)
+            continue
+
+        # ----------------------------------
+        # PICKUP
+        # ----------------------------------
+        if operation.type == "pickup":
 
             if object_id in updated.inventory:
                 results.append(f"You already have the {obj.name}.")
@@ -95,6 +149,10 @@ def resolve_operations(
 
             if obj.location != updated.location:
                 results.append(f"The {obj.name} is out of reach.")
+                continue
+
+            if obj.properties.get("visible", True) is False:
+                results.append("You cannot see that object.")
                 continue
 
             if obj.properties.get("portable") in (False, "false"):
@@ -105,6 +163,9 @@ def resolve_operations(
             obj.location = "inventory"
             result = f"You take the {obj.name}."
 
+        # ----------------------------------
+        # DROP
+        # ----------------------------------
         elif operation.type == "drop":
 
             if object_id not in updated.inventory:
@@ -115,6 +176,9 @@ def resolve_operations(
             obj.location = updated.location
             result = f"You leave the {obj.name} behind."
 
+        # ----------------------------------
+        # INSPECT
+        # ----------------------------------
         elif operation.type == "inspect":
 
             if (
@@ -124,12 +188,20 @@ def resolve_operations(
                 results.append(f"You cannot see the {obj.name}.")
                 continue
 
+            if (
+                object_id not in updated.inventory
+                and obj.properties.get("visible", True) is False
+            ):
+                results.append("You cannot see that object.")
+                continue
+
             result = f"{obj.name}: {obj.properties}"
 
         else:
             results.append("That action is not supported.")
             continue
 
+        # Record successful object operations.
         updated.events.append(
             GameEvent(
                 turn=updated.turn,

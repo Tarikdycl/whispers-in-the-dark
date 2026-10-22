@@ -7,11 +7,7 @@ def build_world_context(
     world: WorldState,
     available_exits: list[dict],
 ) -> dict:
-    """
-    Build a compact, player-visible world context.
-
-    The full WorldState remains authoritative.
-    """
+    """Build a compact context for the AI Director."""
 
     visible_objects = get_visible_objects(world)
 
@@ -47,4 +43,6 @@ def build_world_context(
         "visible_objects": objects,
         "inventory": inventory,
         "available_exits": available_exits,
+        "emotional_state": world.emotional_state.model_dump(),
+        "survival": world.survival.model_dump(),
     }
